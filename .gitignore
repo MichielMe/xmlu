@@ -8,5 +8,9 @@ wheels/
 
 # Virtual environments
 .venv
+.env
 data/
 _testing_usage/
+
+schedule_models.py
+example_usage.py

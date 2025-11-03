@@ -1,6 +1,6 @@
 [project]
 name = "xmlu"
-version = "0.1.1"
+version = "0.1.2"
 description = "XML Utility tools with Pydantic and Typer"
 readme = "README.md"
 requires-python = ">=3.12"

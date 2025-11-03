@@ -1,6 +1,6 @@
 # xmlu
 
-**XML Utility** - Transform XML files into type-safe Pydantic models with automatic type inference and structure detection.
+**XML Utility** - Transform XML files into type-safe Pydantic models or JSON format with automatic type inference and structure detection.
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -11,6 +11,7 @@
 - **Smart Field Detection**: Identifies required vs. optional fields based on occurrence patterns
 - **Nested Model Support**: Recognizes and generates nested models for XML elements with `Name`/`Value` attributes
 - **Pythonic Naming**: Converts XML tags to `snake_case` with field aliases to preserve original names
+- **JSON Conversion**: Convert XML files to JSON format with structured output
 - **CLI & API**: Use as a command-line tool or import as a Python library
 - **Type-Safe**: Generated models use Pydantic v2 for runtime validation
 - **Rich Output**: Beautiful terminal interface with progress information
@@ -30,8 +31,11 @@ pip install xmlu
 ### CLI Usage
 
 ```bash
-# Generate models from XML file
+# Generate Pydantic models from XML file
 xmlu generate schedule.xml --parent Event
+
+# Convert XML to JSON
+xmlu xml-to-json schedule.xml --output schedule.json
 
 # Specify custom output file
 xmlu generate data.xml --parent Item --output models.py
@@ -46,15 +50,22 @@ xmlu version
 ### Python API
 
 ```python
-from xmlu import generate_pydantic_models, create_models_file
+from xmlu import generate_pydantic_models, create_models_file, xml_to_json, xml_to_dict
 
-# Generate models
+# Generate Pydantic models
 models = generate_pydantic_models("schedule.xml", parent_element="Event")
 Event, Fields = models
 
 # Create a models file
 output_file = create_models_file("schedule.xml", list(models))
 print(f"Generated: {output_file}")
+
+# Convert XML to JSON
+json_output = xml_to_json("schedule.xml", "schedule.json")
+
+# Convert XML to dictionary (for programmatic use)
+xml_dict = xml_to_dict("schedule.xml")
+print(xml_dict)
 
 # Use the generated models
 event = Event(
@@ -117,6 +128,56 @@ class Event(BaseModel):
     is_fixed: bool = Field(alias="IsFixed")
     fields: Fields = Field(alias="Fields")
 ```
+
+## JSON Conversion
+
+`xmlu` can also convert XML files directly to JSON format, preserving the hierarchical structure and handling repeated elements automatically.
+
+**Input XML:**
+
+```xml
+<Schedule>
+    <Event>
+        <EventId>1</EventId>
+        <IsFixed>True</IsFixed>
+    </Event>
+    <Event>
+        <EventId>2</EventId>
+        <IsFixed>False</IsFixed>
+    </Event>
+</Schedule>
+```
+
+**Generated JSON:**
+
+```json
+{
+  "Schedule": {
+    "Event": [
+      {
+        "Event": {
+          "EventId": "1",
+          "IsFixed": "True"
+        }
+      },
+      {
+        "Event": {
+          "EventId": "2", 
+          "IsFixed": "False"
+        }
+      }
+    ]
+  }
+}
+```
+
+### JSON Conversion Features
+
+- **Preserves Structure**: Maintains XML hierarchy in JSON format
+- **Handles Attributes**: XML attributes are preserved as key-value pairs
+- **Repeated Elements**: Automatically converts repeated XML elements to JSON arrays
+- **CLI and API**: Available via command line and Python API
+- **Flexible Output**: Print to console or save to file
 
 ## Features in Detail
 
@@ -202,6 +263,32 @@ xmlu generate data.xml -o app/models.py
 xmlu generate schedule.xml --verbose
 ```
 
+### `xml-to-json`
+
+Convert an XML file to JSON format.
+
+```bash
+xmlu xml-to-json [FILE] [OPTIONS]
+```
+
+**Options:**
+
+- `--output, -o PATH`: Output JSON file path (default: prints to console)
+- `--help`: Show help message
+
+**Examples:**
+
+```bash
+# Convert to JSON and print to console
+xmlu xml-to-json schedule.xml
+
+# Save to specific JSON file
+xmlu xml-to-json schedule.xml --output schedule.json
+
+# Save to custom location
+xmlu xml-to-json data.xml -o output/data.json
+```
+
 ### `version`
 
 Show version information.
@@ -250,6 +337,71 @@ Write Pydantic models to a Python file.
 ```python
 output_file = create_models_file("schedule.xml", list(models))
 # Returns: "schedule_models.py"
+```
+
+### `xml_to_json(source_file, output_file=None, indent=4)`
+
+Convert an XML file to JSON format.
+
+**Parameters:**
+
+- `source_file` (str | Path): Path to the XML file to convert
+- `output_file` (str | Path, optional): Path to save JSON output (if None, prints to console)
+- `indent` (int): Number of spaces for JSON indentation (default: 4)
+
+**Returns:**
+
+- `str`: The JSON string representation of the XML
+
+**Example:**
+
+```python
+# Convert and print to console
+json_str = xml_to_json("schedule.xml")
+
+# Convert and save to file
+xml_to_json("schedule.xml", "schedule.json")
+
+# Custom indentation
+xml_to_json("schedule.xml", "schedule.json", indent=2)
+```
+
+### `xml_to_dict(source_file)`
+
+Convert an XML file to a Python dictionary.
+
+**Parameters:**
+
+- `source_file` (str | Path): Path to the XML file to convert
+
+**Returns:**
+
+- `dict`: Dictionary representation of the XML structure
+
+**Example:**
+
+```python
+xml_dict = xml_to_dict("schedule.xml")
+print(xml_dict["Schedule"]["Event"][0]["EventId"])
+```
+
+### `xml_to_console(source_file)`
+
+Print XML structure analysis to console (useful for debugging).
+
+**Parameters:**
+
+- `source_file` (str | Path): Path to the XML file to analyze
+
+**Returns:**
+
+- `str`: String representation of the XML structure
+
+**Example:**
+
+```python
+xml_to_console("schedule.xml")
+# Prints hierarchical structure with attributes and text content
 ```
 
 ### Utility Functions
@@ -313,9 +465,11 @@ xmlu/
 │       ├── __init__.py              # Public API exports
 │       ├── main.py                  # CLI application
 │       ├── convert_to_pydantic.py   # Core model generation
+│       ├── convert_to_json.py       # XML to JSON conversion
 │       └── utils.py                 # String utilities & type inference
 ├── tests/
 │   ├── test_generator.py            # Model generation tests
+│   ├── test_json.py                 # JSON conversion tests
 │   └── test_string_utils.py         # Utility function tests
 ├── pyproject.toml                   # Project configuration
 └── README.md
@@ -348,7 +502,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 **Michiel Meire**
 
-- Email: michiel.meire1@gmail.com
+- Email: <michiel.meire1@gmail.com>
 - GitHub: [@MichielMe](https://github.com/MichielMe)
 
 ## Contributing
@@ -357,7 +511,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Roadmap
 
-- [ ] JSON output format support
+- [x] JSON output format support
 - [ ] XML Schema (XSD) validation
 - [ ] Support for XML attributes (not just elements)
 - [ ] List/array type detection for repeated elements

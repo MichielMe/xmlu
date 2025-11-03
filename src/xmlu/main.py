@@ -5,6 +5,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
+from .convert_to_json import xml_to_json
 from .convert_to_pydantic import create_models_file, generate_pydantic_models
 
 console = Console()
@@ -15,6 +16,16 @@ app = typer.Typer(
     add_completion=False,
     invoke_without_command=True,
 )
+
+
+def get_version() -> str:
+    """Retrieve the current version of the xmlu package."""
+    import importlib.metadata
+
+    try:
+        return importlib.metadata.version("xmlu")
+    except importlib.metadata.PackageNotFoundError:
+        return "development"
 
 
 def _print_banner() -> None:
@@ -32,6 +43,9 @@ def _print_banner() -> None:
         "XML Utility - Generate Pydantic models from XML files", style="cyan"
     )
     subtitle = Text("Transform your XML into type-safe Python models", style="dim")
+    version_info = Text(f"v{get_version()}", style="bold cyan")
+    description.append(" • ")
+    description.append(version_info)
 
     panel_content = Text()
     panel_content.append(banner, style="bold bright_cyan")
@@ -61,6 +75,7 @@ def main(ctx: typer.Context) -> None:
         console.print(
             "  [cyan]generate[/cyan]  Generate Pydantic models from an XML file"
         )
+        console.print("  [cyan]xml-to-json[/cyan]  Convert an XML file to JSON format")
         console.print("  [cyan]version[/cyan]    Show version information")
         console.print()
         console.print(
@@ -181,6 +196,17 @@ def generate(
 
             console.print(f"[red]{traceback.format_exc()}[/red]")
         raise typer.Exit(code=1)
+
+
+@app.command(
+    name="xml-to-json",
+    help="Convert an XML file to JSON format",
+)
+def xml_to_json_command(
+    file_path: Path = typer.Argument(),
+    output: Path = typer.Option(None, "--output", "-o", help="Output JSON file path"),
+) -> None:
+    xml_to_json(file_path, output_file=output)
 
 
 @app.command(
